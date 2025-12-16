@@ -1,0 +1,55 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Dovecot and required packages
+RUN apt-get update && apt-get install -y \
+    dovecot-core \
+    dovecot-imapd \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create test users with passwords
+RUN useradd -m -s /bin/bash ctfuser1 && echo "ctfuser1:CTFpass123!" | chpasswd && \
+    useradd -m -s /bin/bash ctfuser2 && echo "ctfuser2:CTFpass456!" | chpasswd && \
+    useradd -m -s /bin/bash ctfuser3 && echo "ctfuser3:CTFpass789!" | chpasswd
+
+# Create mail directories
+RUN mkdir -p /var/mail/ctfuser1 /var/mail/ctfuser2 /var/mail/ctfuser3 && \
+    chown ctfuser1:ctfuser1 /var/mail/ctfuser1 && \
+    chown ctfuser2:ctfuser2 /var/mail/ctfuser2 && \
+    chown ctfuser3:ctfuser3 /var/mail/ctfuser3 && \
+    chmod -R 700 /var/mail/ctfuser1 /var/mail/ctfuser2 /var/mail/ctfuser3
+
+# Configure Dovecot
+RUN echo 'protocols = imap\n\
+mail_location = maildir:/var/mail/%u\n\
+auth_mechanisms = plain login\n\
+disable_plaintext_auth = no\n\
+\n\
+passdb {\n\
+  driver = pam\n\
+}\n\
+\n\
+userdb {\n\
+  driver = passwd\n\
+}\n\
+\n\
+service imap-login {\n\
+  inet_listener imap {\n\
+    port = 143\n\
+  }\n\
+}\n\
+\n\
+service auth {\n\
+  unix_listener auth-userdb {\n\
+    mode = 0666\n\
+  }\n\
+}\n\
+\n\
+ssl = no\n\
+' > /etc/dovecot/dovecot.conf
+
+EXPOSE 143
+
+CMD ["/usr/sbin/dovecot", "-F"]

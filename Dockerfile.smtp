@@ -1,0 +1,40 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install aiosmtpd for fake SMTP server
+RUN pip install aiosmtpd
+
+# Create fake SMTP server script
+RUN echo '#!/usr/bin/env python3\n\
+import asyncio\n\
+from aiosmtpd.controller import Controller\n\
+from aiosmtpd.smtp import SMTP as SMTPServer\n\
+import logging\n\
+\n\
+logging.basicConfig(level=logging.INFO)\n\
+\n\
+class FakeSMTPHandler:\n\
+    async def handle_DATA(self, server, session, envelope):\n\
+        print(f"Message from {envelope.mail_from}")\n\
+        print(f"Message to {envelope.rcpt_tos}")\n\
+        print(f"Message data:\\n{envelope.content.decode()}")\n\
+        print("-" * 80)\n\
+        return "250 Message accepted for delivery"\n\
+\n\
+async def main():\n\
+    handler = FakeSMTPHandler()\n\
+    controller = Controller(handler, hostname="0.0.0.0", port=25)\n\
+    controller.start()\n\
+    print("Fake SMTP server running on port 25...")\n\
+    print("This server accepts all mail but does not deliver it.")\n\
+    while True:\n\
+        await asyncio.sleep(3600)\n\
+\n\
+if __name__ == "__main__":\n\
+    asyncio.run(main())\n\
+' > /app/fake_smtp.py && chmod +x /app/fake_smtp.py
+
+EXPOSE 25
+
+CMD ["python3", "/app/fake_smtp.py"]

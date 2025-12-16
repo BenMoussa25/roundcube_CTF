@@ -1,0 +1,87 @@
+services:
+  roundcube:
+    build: .
+    container_name: roundcube-mail
+    ports:
+      - "8080:80"
+    volumes:
+      - ./config:/var/www/html/roundcube/config
+      - ./logs:/var/www/html/roundcube/logs
+      - ./temp:/var/www/html/roundcube/temp
+      - roundcube-data:/var/www/html/roundcube
+    environment:
+      - ROUNDCUBEMAIL_DB_TYPE=mysql
+      - ROUNDCUBEMAIL_DB_HOST=db
+      - ROUNDCUBEMAIL_DB_NAME=roundcubemail
+      - ROUNDCUBEMAIL_DB_USER=roundcube
+      - ROUNDCUBEMAIL_DB_PASSWORD=roundcube_password
+    depends_on:
+      - db
+      - imap
+      - smtp
+    networks:
+      - roundcube-network
+    restart: unless-stopped
+
+  imap:
+    build:
+      context: .
+      dockerfile: Dockerfile.imap
+    container_name: roundcube-imap
+    ports:
+      - "143:143"
+    networks:
+      - roundcube-network
+    restart: unless-stopped
+
+  smtp:
+    build:
+      context: .
+      dockerfile: Dockerfile.smtp
+    container_name: roundcube-smtp
+    ports:
+      - "25:25"
+    networks:
+      - roundcube-network
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: roundcube-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=roundcubemail
+      - MYSQL_USER=roundcube
+      - MYSQL_PASSWORD=roundcube_password
+      - MYSQL_CHARSET=utf8mb4
+      - MYSQL_COLLATION=utf8mb4_unicode_ci
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./SQL/mysql.initial.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks:
+      - roundcube-network
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: roundcube-phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      - PMA_HOST=db
+      - PMA_USER=root
+      - PMA_PASSWORD=root_password
+    depends_on:
+      - db
+    networks:
+      - roundcube-network
+    restart: unless-stopped
+
+networks:
+  roundcube-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  roundcube-data:

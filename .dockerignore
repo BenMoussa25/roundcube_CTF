@@ -1,0 +1,19 @@
+# Docker deployment files - ignore logs and temp files
+logs/*
+temp/*
+!logs/.gitkeep
+!temp/.gitkeep
+
+# Docker volumes
+mysql-data/
+
+# Environment files
+.env
+
+# Backup files
+*.sql
+backup/
+
+# IDE files
+.vscode/
+.idea/
